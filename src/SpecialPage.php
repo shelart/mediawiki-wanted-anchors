@@ -25,14 +25,12 @@ class SpecialPage extends \SpecialPage {
     }
 
     function execute($subPage) {
-        $request = $this->getRequest();
         $output = $this->getOutput();
         $this->setHeaders();
-
-        $param = $request->getText('param');
-
         $db = MediaWikiServices::getInstance()->getDBLoadBalancer()->getConnectionRef(ILoadBalancer::DB_PRIMARY);
-        $resultWrapper = $db->select(
+
+        // Locate all pages within the wiki which link to other pages.
+        $originPagesWrapper = $db->select(
             [
                 'pagelinks',
                 'page_src' => 'page',
@@ -66,10 +64,11 @@ class SpecialPage extends \SpecialPage {
                 ],
             ]
         );
-        $result = [];
+        $originPages = [];
+        // Prepare to extract wikitext from each located origin page.
         $queryTexts = [];
-        foreach ($resultWrapper as $row) {
-            $result[$row->page_title] = [
+        foreach ($originPagesWrapper as $row) {
+            $originPages[$row->page_title] = [
                 'rev_id' => $row->slot_revision_id,
                 'content_id' => $row->slot_content_id,
                 'content_address' => $row->content_address,
@@ -79,21 +78,23 @@ class SpecialPage extends \SpecialPage {
                 $queryTexts[] = $contentAddressMatches[1];
             }
         }
-        $queryTexts = array_unique($queryTexts);
 
-        $resultWrapper = $db->select(
+        // Extract wikitext for each origin page.
+        $queryTexts = array_unique($queryTexts);
+        $textsWrapper = $db->select(
             'text',
             ['old_id', 'old_text'],
             'old_id IN (' . join(', ', $queryTexts) . ')',
             __METHOD__
         );
         $texts = [];
-        foreach ($resultWrapper as $row) {
+        foreach ($textsWrapper as $row) {
             $texts[$row->old_id] = $row->old_text;
         }
 
+        // Extract hashlinks from each origin page (parse its wikitext).
         $linkedFrom = [];
-        foreach ($result as $pageTitle => &$data) {
+        foreach ($originPages as $pageTitle => &$data) {
             $contentAddressMatches = [];
             if ($data['content_address'] && preg_match('/^tt:(\\d+)$/', $data['content_address'], $contentAddressMatches)) {
                 $data['content'] = $texts[$contentAddressMatches[1]];
@@ -129,6 +130,8 @@ class SpecialPage extends \SpecialPage {
             }
         }
 
+        // Figure out where the extracted hashlinks target to (which pages they refer to).
+        // Those target pages must be examined later for existence of required sections/anchors.
         $reparseTargetPages = [];
         foreach ($linkedFrom as $hashLink => &$linksFrom) {
             $linksFrom = array_unique($linksFrom);
@@ -142,6 +145,7 @@ class SpecialPage extends \SpecialPage {
             $reparseTargetPages[$targetPageName][$hashLink] = $linksFrom;
         }
 
+        // Parse each target page, extract existing anchors.
         $foundAnchorsInTargetPages = [];
         $oldLibXmlUseInternalErrors = libxml_use_internal_errors(true);
         foreach ($reparseTargetPages as $targetPageName => $_) {
@@ -170,6 +174,7 @@ class SpecialPage extends \SpecialPage {
         }
         libxml_use_internal_errors($oldLibXmlUseInternalErrors);
 
+        // Collect all anchors found among target pages into one bucket.
         $foundAnchors = [];
         foreach ($foundAnchorsInTargetPages as $targetPageName => $targetPageAnchors) {
             foreach ($targetPageAnchors as $targetPageAnchor) {
@@ -178,6 +183,7 @@ class SpecialPage extends \SpecialPage {
         }
         $foundAnchors = array_unique($foundAnchors);
 
+        // Copy only records with broken hashlinks (exclude hashlinks pointing to existing anchors).
         $brokenHashLinksReport = [];
         foreach ($reparseTargetPages as $targetPageName => $hashLinks) {
             foreach ($hashLinks as $hashLink => $linkedFrom) {
@@ -193,6 +199,7 @@ class SpecialPage extends \SpecialPage {
             }
         }
 
+        // Wiki output to the special page.
         $output->addWikiTextAsContent($this->msg('wantedanchors-intro')->rawParams(count($brokenHashLinksReport))->escaped());
         $brokenHashLinksReportWikiText = '';
         foreach ($brokenHashLinksReport as $targetPageName => $hashLinks) {
@@ -212,7 +219,5 @@ class SpecialPage extends \SpecialPage {
             }
         }
         $output->addWikiTextAsContent($brokenHashLinksReportWikiText);
-
-        //$output->addWikiTextAsContent('<pre>' . json_encode($foundAnchors, JSON_PRETTY_PRINT) . '</pre>');
     }
 }
