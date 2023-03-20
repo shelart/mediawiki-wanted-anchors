@@ -1,6 +1,7 @@
 {
   "name": "WantedAnchors",
   "author": "Artūras Šelechov-Balčiūnas",
+  "url": "https://github.com/shelart/mediawiki-wanted-anchors",
   "descriptionmsg": "wantedanchors-desc",
   "version": "1.0.0",
   "license-name": "Apache-2.0",
