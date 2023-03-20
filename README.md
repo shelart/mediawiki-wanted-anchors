@@ -30,3 +30,22 @@ This extension helps it.
 3. Validate the installation by visiting your wiki `Special:Version` page.
    You should see the `WantedAnchors` plugin under "**Special pages**"
    section of "**Installed extension**" chapter.
+
+## Caveats
+
+* This extension relies on `pagelinks` table to collect links (exactly as
+  [Special:WantedPages](https://www.mediawiki.org/wiki/Manual:WantedPages)),
+  but then it has to retrieve & parse wikitext for every origin page in order
+  to extract hashlinks, and then it has to retrieve & parse HTMLs for every
+  target page (discovered by hashlinks) in order to find out which anchors
+  exist and which are missing. This is a **heavy work**, which might not be
+  appropriately running on a cheap shared hosting. More links between pages
+  you have, more time is required to render the special page. (Only distinct
+  links are counted, though.) **Use with extreme caution on large
+  (1000+ pages) wikis!**
+* This extension *sometimes* catches broken hashlinks within a page (e.g.
+  `[[#Section 3]]` link when the page doesn't have `== Section 3 ==`).
+  Indeed, it occurs if such a page has *any* links to other pages within
+  your wiki. However, if a page only has hashlinks to itself (regardless of
+  interwiki links or pure `<a />` links), then it's not going to be processed
+  by this extension.
