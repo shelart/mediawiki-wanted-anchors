@@ -1,0 +1,7 @@
+{
+  "wantedanchors": "Wanted anchors",
+  "wantedanchors-desc": "Adds a [[Special:WantedAnchors|special page]] which extends the core functionality of MediaWiki provided with Special:WantedPages but for anchors (<nowiki>[[...#]]</nowiki> links)",
+  "wantedanchors-intro": "We have found $1 pages which are targeted with hashlinks:",
+  "wantedanchors-targetpage-hashlinks": "$1 hashlinks:",
+  "wantedanchors-hashlink-origins": "$1 origins:"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "WantedAnchors",
+  "author": "Artūras Šelechov-Balčiūnas",
+  "descriptionmsg": "wantedanchors-desc",
+  "version": "0.1.0",
+  "license-name": "MIT",
+  "type": "specialpage",
+  "SpecialPages": {
+    "WantedAnchors": "MediaWiki\\Extension\\WantedAnchors\\SpecialPage"
+  },
+  "AutoloadNamespaces": {
+    "MediaWiki\\Extension\\WantedAnchors\\": "src/"
+  },
+  "MessagesDirs": {
+    "WantedAnchors": [
+      "i18n"
+    ]
+  },
+  "manifest_version": 2,
+  "requires": {
+    "MediaWiki": ">= 1.35.0"
+  }
+}
