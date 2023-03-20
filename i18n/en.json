@@ -1,4 +1,9 @@
 {
+  "@metadata": {
+    "authors": [
+      "Arturas Shelekhov-Balchunas"
+    ]
+  },
   "wantedanchors": "Wanted anchors",
   "wantedanchors-desc": "Adds a [[Special:WantedAnchors|special page]] which extends the core functionality of MediaWiki provided with Special:WantedPages but for anchors (<nowiki>[[...#]]</nowiki> links)",
   "wantedanchors-intro": "There are $1 pages which are targeted with broken hashlinks:",
