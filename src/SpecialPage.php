@@ -126,27 +126,77 @@ class SpecialPage extends \SpecialPage {
             $reparseTargetPages[$targetPageName][$hashLink] = $linksFrom;
         }
 
-        //$output->addWikiTextAsContent('<pre>' . json_encode($result, JSON_PRETTY_PRINT) . '</pre>');
-        //$output->addWikiTextAsContent('<pre>' . json_encode($linkedFrom, JSON_PRETTY_PRINT) . '</pre>');
-        //$output->addWikiTextAsContent('<pre>' . json_encode($reparseTargetPages, JSON_PRETTY_PRINT) . '</pre>');
-        $output->addWikiTextAsContent($this->msg('wantedanchors-intro')->rawParams(count($reparseTargetPages))->escaped());
-        $reparseTargetPagesWikiText = '';
+        $foundAnchorsInTargetPages = [];
+        $oldLibXmlUseInternalErrors = libxml_use_internal_errors(true);
+        foreach ($reparseTargetPages as $targetPageName => $_) {
+            try {
+                $parseRequest = new \FauxRequest([
+                    'action' => 'parse',
+                    'page' => $targetPageName,
+                    'prop' => 'text',
+                ]);
+                $apiParseRequest = new \ApiMain($parseRequest);
+                $apiParseRequest->execute();
+                $foundAnchorsInTargetPages[$targetPageName] = $apiParseRequest->getResult()->getResultData()['parse']['text'];
+
+                $dom = new \DOMDocument();
+                $dom->loadHTML($foundAnchorsInTargetPages[$targetPageName]);
+                $xpath = new \DOMXPath($dom);
+                $anchorElems = $xpath->query('//*[@id]');
+                $anchors = [];
+                foreach ($anchorElems as $anchorElem) {
+                    $anchors[] = str_replace('_', ' ', $anchorElem->getAttribute('id'));
+                }
+                $foundAnchorsInTargetPages[$targetPageName] = $anchors;
+            } catch (\Exception $e) {
+                // nop
+            }
+        }
+        libxml_use_internal_errors($oldLibXmlUseInternalErrors);
+
+        $foundAnchors = [];
+        foreach ($foundAnchorsInTargetPages as $targetPageName => $targetPageAnchors) {
+            foreach ($targetPageAnchors as $targetPageAnchor) {
+                $foundAnchors[] = "$targetPageName#$targetPageAnchor";
+            }
+        }
+        $foundAnchors = array_unique($foundAnchors);
+
+        $brokenHashLinksReport = [];
         foreach ($reparseTargetPages as $targetPageName => $hashLinks) {
-            $reparseTargetPagesWikiText .= "* [[$targetPageName]], "
+            foreach ($hashLinks as $hashLink => $linkedFrom) {
+                if (in_array($hashLink, $foundAnchors)) {
+                    continue;
+                }
+
+                if (!array_key_exists($targetPageName, $brokenHashLinksReport)) {
+                    $brokenHashLinksReport[$targetPageName] = [];
+                }
+
+                $brokenHashLinksReport[$targetPageName][$hashLink] = $linkedFrom;
+            }
+        }
+
+        $output->addWikiTextAsContent($this->msg('wantedanchors-intro')->rawParams(count($brokenHashLinksReport))->escaped());
+        $brokenHashLinksReportWikiText = '';
+        foreach ($brokenHashLinksReport as $targetPageName => $hashLinks) {
+            $brokenHashLinksReportWikiText .= "* [[$targetPageName]], "
                 . $this->msg('wantedanchors-targetpage-hashlinks')->rawParams(count($hashLinks))->escaped()
                 . PHP_EOL;
 
             foreach ($hashLinks as $hashLink => $linkedFrom) {
-                $reparseTargetPagesWikiText .= "** [[$hashLink]], "
+                $brokenHashLinksReportWikiText .= "** [[$hashLink]], "
                     . $this->msg('wantedanchors-hashlink-origins')->rawParams(count($linkedFrom))->escaped()
                     . PHP_EOL;
 
                 foreach ($linkedFrom as $linkFrom) {
                     $linkFrom = str_replace('_', ' ', $linkFrom);
-                    $reparseTargetPagesWikiText .= "*** [[$linkFrom]]" . PHP_EOL;
+                    $brokenHashLinksReportWikiText .= "*** [[$linkFrom]]" . PHP_EOL;
                 }
             }
         }
-        $output->addWikiTextAsContent($reparseTargetPagesWikiText);
+        $output->addWikiTextAsContent($brokenHashLinksReportWikiText);
+
+        //$output->addWikiTextAsContent('<pre>' . json_encode($foundAnchors, JSON_PRETTY_PRINT) . '</pre>');
     }
 }
