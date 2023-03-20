@@ -49,3 +49,5 @@ This extension helps it.
   your wiki. However, if a page only has hashlinks to itself (regardless of
   interwiki links or pure `<a />` links), then it's not going to be processed
   by this extension.
+* This extension does not respect redirect pages. It may report a broken
+  hashlink even if the final page has the required anchor.
