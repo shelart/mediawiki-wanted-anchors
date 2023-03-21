@@ -25,11 +25,16 @@ class SpecialPage extends \SpecialPage {
     }
 
     function execute($subPage) {
+        $startTimes = [];
+        $endTimes = [];
+        $startTimes['total'] = hrtime(true);
+
         $output = $this->getOutput();
         $this->setHeaders();
         $db = MediaWikiServices::getInstance()->getDBLoadBalancer()->getConnectionRef(ILoadBalancer::DB_PRIMARY);
 
         // Locate all pages within the wiki which link to other pages.
+        $startTimes['locate-origin-pages'] = hrtime(true);
         $originPagesWrapper = $db->select(
             [
                 'pagelinks',
@@ -78,9 +83,11 @@ class SpecialPage extends \SpecialPage {
                 $queryTexts[] = $contentAddressMatches[1];
             }
         }
+        $endTimes['locate-origin-pages'] = hrtime(true);
 
         // Extract wikitext for each origin page.
         $queryTexts = array_unique($queryTexts);
+        $startTimes['load-content-origin-pages'] = hrtime(true);
         $textsWrapper = $db->select(
             'text',
             ['old_id', 'old_text'],
@@ -91,8 +98,10 @@ class SpecialPage extends \SpecialPage {
         foreach ($textsWrapper as $row) {
             $texts[$row->old_id] = $row->old_text;
         }
+        $endTimes['load-content-origin-pages'] = hrtime(true);
 
         // Extract hashlinks from each origin page (parse its wikitext).
+        $startTimes['extract-hashlinks-from-origin-pages'] = hrtime(true);
         $linkedFrom = [];
         foreach ($originPages as $pageTitle => &$data) {
             $contentAddressMatches = [];
@@ -129,6 +138,7 @@ class SpecialPage extends \SpecialPage {
                 unset($data['content']);
             }
         }
+        $endTimes['extract-hashlinks-from-origin-pages'] = hrtime(true);
 
         // Figure out where the extracted hashlinks target to (which pages they refer to).
         // Those target pages must be examined later for existence of required sections/anchors.
@@ -146,6 +156,7 @@ class SpecialPage extends \SpecialPage {
         }
 
         // Parse each target page, extract existing anchors.
+        $startTimes['parse-target-pages'] = hrtime(true);
         $foundAnchorsInTargetPages = [];
         $oldLibXmlUseInternalErrors = libxml_use_internal_errors(true);
         foreach ($reparseTargetPages as $targetPageName => $_) {
@@ -173,8 +184,10 @@ class SpecialPage extends \SpecialPage {
             }
         }
         libxml_use_internal_errors($oldLibXmlUseInternalErrors);
+        $endTimes['parse-target-pages'] = hrtime(true);
 
         // Collect all anchors found among target pages into one bucket.
+        $startTimes['collect-all-anchors'] = hrtime(true);
         $foundAnchors = [];
         foreach ($foundAnchorsInTargetPages as $targetPageName => $targetPageAnchors) {
             foreach ($targetPageAnchors as $targetPageAnchor) {
@@ -182,8 +195,10 @@ class SpecialPage extends \SpecialPage {
             }
         }
         $foundAnchors = array_unique($foundAnchors);
+        $endTimes['collect-all-anchors'] = hrtime(true);
 
         // Copy only records with broken hashlinks (exclude hashlinks pointing to existing anchors).
+        $startTimes['prepare-report'] = hrtime(true);
         $brokenHashLinksReport = [];
         foreach ($reparseTargetPages as $targetPageName => $hashLinks) {
             foreach ($hashLinks as $hashLink => $linkedFrom) {
@@ -198,6 +213,7 @@ class SpecialPage extends \SpecialPage {
                 $brokenHashLinksReport[$targetPageName][$hashLink] = $linkedFrom;
             }
         }
+        $endTimes['prepare-report'] = hrtime(true);
 
         // Wiki output to the special page.
         $output->addWikiTextAsContent($this->msg('wantedanchors-intro')->rawParams(count($brokenHashLinksReport))->escaped());
@@ -219,5 +235,36 @@ class SpecialPage extends \SpecialPage {
             }
         }
         $output->addWikiTextAsContent($brokenHashLinksReportWikiText);
+
+        $endTimes['total'] = hrtime(true);
+
+        // Output performance stats.
+        $perfWikiText = '{| class="wikitable"' . PHP_EOL;
+        $perfWikiText .= '|+ ' . $this->msg('wantedanchors-perf-stats-caption')->escaped() . PHP_EOL;
+        $perfWikiText .= '! ' . $this->msg('wantedanchors-perf-stats-phase')->escaped()
+            . ' !! ' . $this->msg('wantedanchors-perf-stats-time')->escaped()
+            . PHP_EOL;
+        $statsKeys = array_intersect(array_keys($startTimes), array_keys($endTimes));
+        foreach ($statsKeys as $key) {
+            if ($key == 'total') {
+                continue;
+            }
+
+            $perfWikiText .= '|-' . PHP_EOL;
+            $perfWikiText .= '| ' . $this->msg("wantedanchors-perf-stats-$key")->escaped()
+                . ' || ' . $this->formatTime($endTimes[$key] - $startTimes[$key])
+                . PHP_EOL;
+        }
+        $perfWikiText .= '|-' . PHP_EOL;
+        $perfWikiText .= '| ' . $this->msg('wantedanchors-perf-stats-total')->escaped()
+            . ' || ' . $this->formatTime($endTimes['total'] - $startTimes['total'])
+            . PHP_EOL;
+        $perfWikiText .= '|}';
+        $output->addWikiTextAsContent($perfWikiText);
+    }
+
+    private function formatTime($nanoseconds): string {
+        $seconds = $nanoseconds / 1e9;
+        return sprintf("%.3f", $seconds) . ' ' . $this->msg('wantedanchors-units-sec')->escaped();
     }
 }

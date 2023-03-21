@@ -8,5 +8,16 @@
   "wantedanchors-desc": "Adds a [[Special:WantedAnchors|special page]] which extends the core functionality of MediaWiki provided with Special:WantedPages but for anchors (<nowiki>[[...#]]</nowiki> links)",
   "wantedanchors-intro": "There are $1 pages which are targeted with broken hashlinks:",
   "wantedanchors-targetpage-hashlinks": "$1 broken hashlinks:",
-  "wantedanchors-hashlink-origins": "$1 origins:"
+  "wantedanchors-hashlink-origins": "$1 origins:",
+  "wantedanchors-units-sec": "sec",
+  "wantedanchors-perf-stats-caption": "Performance statistics",
+  "wantedanchors-perf-stats-phase": "Phase",
+  "wantedanchors-perf-stats-time": "Duration",
+  "wantedanchors-perf-stats-total": "Total",
+  "wantedanchors-perf-stats-locate-origin-pages": "Locate origin pages",
+  "wantedanchors-perf-stats-load-content-origin-pages": "Load wikitexts from all origin pages",
+  "wantedanchors-perf-stats-extract-hashlinks-from-origin-pages": "Extract hashlinks",
+  "wantedanchors-perf-stats-parse-target-pages": "Parse target pages for anchors",
+  "wantedanchors-perf-stats-collect-all-anchors": "Collect all anchors to a single bucket",
+  "wantedanchors-perf-stats-prepare-report": "Prepare report"
 }
