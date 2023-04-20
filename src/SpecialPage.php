@@ -109,7 +109,7 @@ class SpecialPage extends \SpecialPage {
                 $data['content'] = $texts[$contentAddressMatches[1]];
                 $hashLinksWithText = [];
                 $hashLinksWithoutText = [];
-                $regexLinksWithText = '/\[\[([\w\d\s\-,&\/\(\)]*#[\w\d\s\-,&\/\(\)]+)|(?!]])\]\]/m';
+                $regexLinksWithText =    '/\[\[([\w\d\s\-,&\/\(\)]*#[\w\d\s\-,&\/\(\)]+)|(?!]])\]\]/m';
                 $regexLinksWithoutText = '/\[\[([\w\d\s\-,&\/\(\)]*#[\w\d\s\-,&\/\(\)]+)\]\]/m';
                 preg_match_all($regexLinksWithText, $data['content'], $hashLinksWithText);
                 $hashLinksWithText = array_merge(...$hashLinksWithText); // flatten
